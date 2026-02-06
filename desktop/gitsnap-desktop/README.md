@@ -1,14 +1,24 @@
 # GitSnap Desktop (Tauri)
 
-Wrapper Tauri per l'app Streamlit GitSnap: una finestra nativa che in **dev** carica `http://localhost:8501` (Streamlit avviato da `build_desktop.py`).
+Wrapper Tauri per l'app Streamlit GitSnap: finestra nativa che carica `http://localhost:8501`.
 
-**Non avviare da qui.** Dalla **root del repo**:
+## Dev (dalla root del repo)
 
 ```bash
 # Con venv attivo
 python scripts/build_desktop.py dev
 ```
 
-Lo script esegue `build_output.py`, sincronizza le risorse in `src-tauri/resources/GitSnap`, avvia Streamlit e lancia `npm run tauri dev`. La finestra apre direttamente l'app Streamlit.
+Lo script avvia Streamlit, sincronizza le risorse in `src-tauri/resources/GitSnap` e lancia Tauri. La finestra apre direttamente l'app Streamlit.
 
-- **build:** `python scripts/build_desktop.py build` → installer in `src-tauri/target/release/bundle/`
+## Build (installer)
+
+```bash
+python scripts/build_desktop.py build
+```
+
+Installer e .exe in: `desktop/gitsnap-desktop/src-tauri/target/release/bundle/`.
+
+**Uso dell'app installata:** la finestra reindirizza a `http://localhost:8501`. Devi avviare Streamlit **prima** di aprire l'app, ad esempio:
+- dalla cartella del repo (con venv attivo): `streamlit run app.py --server.port 8501`
+- oppure dalla copia in `resources/GitSnap` dell’installer (se hai Python/venv lì): `python -m streamlit run app.py --server.port 8501`
