@@ -97,10 +97,10 @@ def main():
         "Base URL (opzionale – per Azure DevOps Server on‑prem lasciare vuoto = cloud)",
         value=config.get("base_url", ""),
         key="base_url",
-        placeholder="es. http://gswvwtfs1.ternaren.prv:8080/tfs",
+        placeholder="es. http://azure.devops.prv:8080/test",
     )
     org = st.text_input("Organization (es. DefaultCollection)", value=config.get("organization", ""), key="org")
-    project = st.text_input("Project (es. EACS)", value=config.get("project", ""), key="project")
+    project = st.text_input("Project (es. APPMOBILE)", value=config.get("project", ""), key="project")
     pat = st.text_input("PAT (Personal Access Token)", type="password", key="pat_input")
     username = st.text_input("Username (opzionale, lasciare vuoto per solo PAT)", value=config.get("username", ""), key="username")
 
