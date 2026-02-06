@@ -24,10 +24,7 @@ def _tag_name_from_ref(ref_name: str) -> str:
 
 
 def _branch_short_name(ref_name: str) -> Optional[str]:
-    """
-    Da nome ref restituisce il nome corto del branch.
-    Accetta: refs/heads/master, heads/master, master (alcuni TFS non usano refs/heads/).
-    """
+    """Estrae il nome corto da ref (refs/heads/X, heads/X o X)."""
     if not ref_name:
         return None
     ref_name = ref_name.strip()
@@ -61,15 +58,8 @@ def resolve_ref_for_repo(
         return ref_value, ref_value[:7], None
 
     if ref_type == REF_TYPE_BRANCH:
-        """
-        Strategia più robusta:
-        - leggiamo tutti i branch (refs/heads/*)
-        - cerchiamo prima match esatto sul nome corto (develop)
-        - poi match case-insensitive
-        - infine match su suffisso del full ref
-        """
         wanted = ref_value
-        all_heads = client.get_refs(repository_id, filter_prefix="heads/", top=1000)
+        all_heads = client.get_refs(repository_id, filter_prefix="refs/heads/", top=1000)
         if not all_heads:
             return None, None, f"Branch not found: {ref_value}"
 

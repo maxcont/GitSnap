@@ -175,63 +175,29 @@ class AzureDevOpsClient:
         filter_prefix: Optional[str] = None,
         top: int = 1000,
     ) -> list[dict]:
-        """List refs (branches/tags) for a repository. Optional filter by prefix (e.g. refs/heads/, refs/tags/)."""
+        """List refs (branches/tags). filter_prefix può essere refs/heads/ o refs/tags/ (normalizzato per TFS)."""
         path = f"/git/repositories/{repository_id}/refs"
-        # Su Azure DevOps Server on-prem (TFS) la 7.1 spesso non è supportata: riprova con 6.0 e 5.0
+        # TFS/ADO Server accetta filter=heads/ o filter=tags/, non refs/heads/
+        filter_norm = None
+        if filter_prefix:
+            filter_norm = filter_prefix.strip()
+            if filter_norm.startswith("refs/"):
+                filter_norm = filter_norm[len("refs/"):]
         for api_ver in (API_VERSION, "6.0", API_VERSION_ONPREM):
             params = {"api-version": api_ver, "$top": top}
-            if filter_prefix:
-                params["filter"] = filter_prefix
+            if filter_norm:
+                params["filter"] = filter_norm
             try:
                 data = self._request("GET", path, params=params)
             except AzureDevOpsClientError:
                 continue
             if not data:
-                logger.debug("get_refs: api-version=%s, response body empty", api_ver)
                 continue
-            # Alcuni server restituiscono "value", altri strutture diverse
             refs = data.get("value") if isinstance(data, dict) else None
             if refs is None:
-                refs = data.get("refs") if isinstance(data, dict) else None
+                refs = data.get("refs")
             if refs is not None and isinstance(refs, list):
-                if not refs and logger.isEnabledFor(logging.DEBUG):
-                    logger.debug(
-                        "get_refs: api-version=%s, repo_id=%s, filter=%s, response keys=%s",
-                        api_ver, repository_id, filter_prefix, list(data.keys()) if isinstance(data, dict) else None,
-                    )
                 return refs
-            # Risposta senza lista refs (es. formato diverso): prova altra api-version
-            logger.debug(
-                "get_refs: api-version=%s, no value/refs in response, keys=%s",
-                api_ver, list(data.keys()) if isinstance(data, dict) else None,
-            )
-        # Ultimo tentativo: alcuni TFS espongono i ref senza prefisso refs/heads/; chiedi TUTTI i ref (no filter)
-        if filter_prefix and "heads" in filter_prefix:
-            for api_ver in (API_VERSION_ONPREM, "6.0", API_VERSION):
-                params = {"api-version": api_ver, "$top": top}
-                try:
-                    data = self._request("GET", path, params=params)
-                except AzureDevOpsClientError:
-                    continue
-                if not data:
-                    continue
-                refs = data.get("value") or data.get("refs")
-                if refs and isinstance(refs, list):
-                    # Filtra client-side: considera branch tutto ciò che è refs/heads/X, heads/X o non è un tag
-                    def is_branch_like(ref_dict: dict) -> bool:
-                        name = (ref_dict.get("name") or "").strip()
-                        if name.startswith("refs/tags/"):
-                            return False
-                        if name.startswith("refs/heads/") or name.startswith("heads/"):
-                            return True
-                        # Nome corto tipo "master", "CR-Luglio" (nessuno slash refs/...)
-                        if "/" not in name or name.startswith("heads/"):
-                            return True
-                        return False
-                    branch_refs = [r for r in refs if is_branch_like(r)]
-                    if branch_refs:
-                        logger.debug("get_refs: usati %d ref (senza filter) come branch", len(branch_refs))
-                        return branch_refs
         return []
 
     def get_commits(
