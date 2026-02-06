@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 
 CONFIG_FILE = Path(__file__).resolve().parent / "config.json"
 PROJECTS_FILE = Path(__file__).resolve().parent / "projects.json"
+CREDITS_AUTHOR = "Massimo Contursi"
 SESSION_PAT = "pat"
 SESSION_CLIENT = "client"
 SESSION_REPOS = "repos"
@@ -113,7 +114,13 @@ def main():
         layout="wide",
         initial_sidebar_state="collapsed",
     )
-    st.title("🔄 GitSnap – Confronto ambienti")
+    st.markdown(
+        '<div style="display: flex; align-items: baseline; flex-wrap: nowrap; gap: 0.5rem;">'
+        f'<h1 style="margin: 0; display: inline;">🔄 GitSnap – Confronto ambienti</h1>'
+        f'<span style="font-size:0.95rem; color: inherit; white-space: nowrap;">· by {CREDITS_AUTHOR}</span>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
     st.caption("Confronta SOURCE vs TARGET su più repository tramite Azure DevOps REST API.")
 
     config = load_config()
@@ -193,6 +200,9 @@ def main():
                 if st.session_state.get(SESSION_CURRENT_PROJECT_ID) == to_delete_id:
                     st.session_state[SESSION_CURRENT_PROJECT_ID] = None
                 st.rerun()
+
+        st.markdown("---")
+        st.caption(f"GitSnap · built with ❤️ by {CREDITS_AUTHOR}")
 
     # ----- Config & connection (compatta) -----
     # Inizializza campi da config solo se non già in session (evita conflitto con "Carica progetto")
@@ -544,6 +554,9 @@ def main():
             "target": st.session_state.get(SESSION_TARGET),
         })
         st.success("Configurazione salvata in config.json.")
+
+    st.divider()
+    st.caption(f"GitSnap · by **{CREDITS_AUTHOR}**")
 
 
 if __name__ == "__main__":
