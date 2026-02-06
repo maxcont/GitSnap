@@ -1,0 +1,77 @@
+{
+  "info": {
+    "name": "GitCheck - Azure DevOps API",
+    "description": "Test connessione, api-version e ref per Azure DevOps (anche on-prem)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "BASE_URL", "value": "http://gswvwtfs1.ternaren.prv:8080/tfs" },
+    { "key": "ORG", "value": "DefaultCollection" },
+    { "key": "PROJECT", "value": "EACS" },
+    { "key": "REPO_ID", "value": "ProgConf-BE" },
+    { "key": "PAT", "value": "" }
+  ],
+  "auth": {
+    "type": "basic",
+    "basic": [
+      { "key": "username", "value": "" },
+      { "key": "password", "value": "{{PAT}}" }
+    ]
+  },
+  "item": [
+    {
+      "name": "1 - List repositories (api 5.0)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{BASE_URL}}/{{ORG}}/{{PROJECT}}/_apis/git/repositories?api-version=5.0",
+        "description": "Test connessione. Dalla risposta prendi value[].id o value[].name per REPO_ID."
+      }
+    },
+    {
+      "name": "2 - Refs - api 5.0",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{BASE_URL}}/{{ORG}}/{{PROJECT}}/_apis/git/repositories/{{REPO_ID}}/refs?api-version=5.0&$top=100",
+        "description": "Lista tutti i ref. Controlla se value[].name è refs/heads/master o master."
+      }
+    },
+    {
+      "name": "3 - Refs - api 6.0",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{BASE_URL}}/{{ORG}}/{{PROJECT}}/_apis/git/repositories/{{REPO_ID}}/refs?api-version=6.0&$top=100",
+        "description": "Stessa cosa con api-version 6.0."
+      }
+    },
+    {
+      "name": "4 - Refs - api 7.1",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{BASE_URL}}/{{ORG}}/{{PROJECT}}/_apis/git/repositories/{{REPO_ID}}/refs?api-version=7.1&$top=100",
+        "description": "Stessa cosa con api-version 7.1 (spesso non supportata on-prem)."
+      }
+    },
+    {
+      "name": "5 - Refs filtrati refs/heads (api 5.0)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{BASE_URL}}/{{ORG}}/{{PROJECT}}/_apis/git/repositories/{{REPO_ID}}/refs?api-version=5.0&$top=100&filter=refs/heads/",
+        "description": "Solo branch (prefisso refs/heads/)."
+      }
+    },
+    {
+      "name": "6 - Commits su branch master (api 5.0)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{BASE_URL}}/{{ORG}}/{{PROJECT}}/_apis/git/repositories/{{REPO_ID}}/commits?api-version=5.0&$top=5&searchCriteria.itemVersion.version=master&searchCriteria.itemVersion.versionType=branch",
+        "description": "Ultimi 5 commit sul branch master."
+      }
+    }
+  ]
+}
