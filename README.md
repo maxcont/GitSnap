@@ -26,6 +26,7 @@ Consente al team di rispondere in pochi secondi a:
 - [Api-version](#api-version-quale-versione-usa-il-server)
 - [Test API con Postman](#test-api-con-postman)
 - [Build pacchetto (output)](#build-pacchetto-output)
+- [Build desktop (Tauri)](#build-desktop-tauri)
 - [Risoluzione problemi](#risoluzione-problemi)
 - [Vincoli tecnici](#vincoli-tecnici)
 
@@ -323,6 +324,9 @@ Per on‑prem, `base_url` può essere ad es. `http://gswvwtfs1.ternaren.prv:8080
 | **.streamlit/config.toml** | Configurazione Streamlit (es. `gatherUsageStats = false`). |
 | **.vscode/launch.json** | Configurazioni debug (Streamlit: debug app.py, con/senza headless). |
 | **scripts/build_output.py** | Script per creare un pacchetto in `output/GitCheck` (copia app, moduli, config, projects, requirements, README, .streamlit, Avvia.bat, .venv). |
+| **scripts/build_desktop.py** | Script unico per Tauri: `python scripts/build_desktop.py [dev|build]` — **dev** avvia la finestra desktop con l’app Streamlit, **build** genera l’installer. |
+| **scripts/tauri_dev_streamlit.py** | Usato da Tauri come beforeDevCommand: avvia Streamlit in background sulla porta 8501 e termina quando il server è pronto, così la finestra carica l’app. |
+| **desktop/gitsnap-desktop/** | Progetto Tauri (Vite + Rust): `src-tauri/tauri.conf.json` punta a Streamlit in dev (devUrl 8501, beforeDevCommand = script sopra). |
 | **POSTMAN_REQUESTS.md** | Istruzioni e richieste Postman per testare le API Azure DevOps (connessione, api-version, refs, commits, diffs). |
 | **GitCheck_Postman_Collection.json** | Collection Postman importabile (variabili BASE_URL, ORG, PROJECT, REPO_ID, PAT). |
 
@@ -383,6 +387,43 @@ python scripts/build_output.py
 ```
 
 Pacchetto in `output/GitCheck`; da lì attivare `.venv`, installare dipendenze se necessario, e avviare con `Avvia.bat` o `streamlit run app.py`.
+
+---
+
+## Build desktop (Tauri)
+
+L’app può essere avviata (o distribuita) come **applicazione desktop** tramite **Tauri** (finestra nativa che carica l’interfaccia Streamlit). Il progetto Tauri si trova in **`desktop/gitsnap-desktop`** (frontend Vite + Rust).
+
+### Script unico: dev o build
+
+Dalla **root del progetto** (dove si trova la cartella `scripts`):
+
+```bash
+python scripts/build_desktop.py [dev|build]
+```
+
+- **`dev`** (default) – Avvia la finestra Tauri in modalità sviluppo. Lo script:
+  1. Esegue `build_output.py` e copia il pacchetto in `desktop/gitsnap-desktop/src-tauri/resources/GitSnap`
+  2. Lancia `npm run tauri dev` nella cartella Tauri
+  3. Tauri esegue **beforeDevCommand**: avvia Streamlit (porta 8501) tramite `scripts/tauri_dev_streamlit.py` e attende che sia pronto
+  4. Apre la finestra desktop su **http://localhost:8501**, quindi mostra **l’app Streamlit** (non la splash Vite)
+
+- **`build`** – Stesso sync delle risorse, poi esegue `npm run tauri build` e produce l’installer in `desktop/gitsnap-desktop/src-tauri/target/release/bundle/`.
+
+### Prerequisiti Tauri
+
+- **Node.js** e **npm** (per il frontend e la CLI Tauri)
+- **Rust** e **Cargo** (per il binario nativo): [rustup](https://rustup.rs/)
+- **Python** con Streamlit già installato (per `dev`, che lancia Streamlit in background)
+
+### Perché in dev si vedeva la splash invece dell’app
+
+In origine il `beforeDevCommand` era `npm run dev` (Vite su porta 1420) e `devUrl` era `http://localhost:1420`, quindi la finestra caricava il template Vite/Tauri (splash). Per mostrare l’app Streamlit:
+
+- **beforeDevCommand** è stato impostato a `python ../../scripts/tauri_dev_streamlit.py`: avvia Streamlit sulla porta 8501 e termina quando il server è pronto.
+- **devUrl** è stato impostato a `http://localhost:8501`: la finestra carica direttamente l’app Streamlit.
+
+Se la finestra si apre ma la pagina è bianca, attendi qualche secondo (Streamlit può impiegare un po’ ad avviarsi) o controlla che la porta 8501 non sia già in uso.
 
 ---
 

@@ -4,18 +4,20 @@
   "version": "0.1.0",
   "identifier": "com.mcontursi.gitsnap-desktop",
   "build": {
-    "beforeDevCommand": "npm run dev",
-    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": "python ../../scripts/tauri_noop.py",
+    "devUrl": "http://localhost:8501",
     "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },
   "app": {
-    "withGlobalTauri": true,
+    "withGlobalTauri": false,
     "windows": [
       {
-        "title": "gitsnap-desktop",
-        "width": 800,
-        "height": 600
+        "title": "GitSnap",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600
       }
     ],
     "security": {

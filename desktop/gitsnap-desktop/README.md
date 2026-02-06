@@ -1,7 +1,14 @@
-# Tauri + Vanilla TS
+# GitSnap Desktop (Tauri)
 
-This template should help get you started developing with Tauri in vanilla HTML, CSS and Typescript.
+Wrapper Tauri per l'app Streamlit GitSnap: una finestra nativa che in **dev** carica `http://localhost:8501` (Streamlit avviato da `build_desktop.py`).
 
-## Recommended IDE Setup
+**Non avviare da qui.** Dalla **root del repo**:
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+```bash
+# Con venv attivo
+python scripts/build_desktop.py dev
+```
+
+Lo script esegue `build_output.py`, sincronizza le risorse in `src-tauri/resources/GitSnap`, avvia Streamlit e lancia `npm run tauri dev`. La finestra apre direttamente l'app Streamlit.
+
+- **build:** `python scripts/build_desktop.py build` → installer in `src-tauri/target/release/bundle/`
