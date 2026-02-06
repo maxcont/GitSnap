@@ -489,26 +489,26 @@ def main():
 
             commits = r.get("commits") or []
             if commits:
-                st.markdown("**Commit (SOURCE non in TARGET):**")
-                for i, c in enumerate(commits):
-                    raw_msg = c.get("comment") or ""
-                    msg = _clean(raw_msg) or "(nessun messaggio)"
-                    commit_id = (c.get("commitId") or "")[:7]
-                    auth = c.get("author")
-                    author = auth.get("name", "") if isinstance(auth, dict) else (auth or "")
-                    author = _clean(author)
-                    raw_date = c.get("date") or ""
-                    date_str = _fmt_date(raw_date) if raw_date else ""
-                    with st.container():
-                        line = f"`{commit_id}`"
-                        if author:
-                            line += f" — *{author}*"
-                        if date_str:
-                            line += f" · 📅 {date_str}"
-                        st.caption(line)
-                        st.text(msg)
-                        if i < len(commits) - 1:
-                            st.divider()
+                with st.expander(f"📋 Commit (SOURCE non in TARGET) ({len(commits)})", expanded=False):
+                    for i, c in enumerate(commits):
+                        raw_msg = c.get("comment") or ""
+                        msg = _clean(raw_msg) or "(nessun messaggio)"
+                        commit_id = (c.get("commitId") or "")[:7]
+                        auth = c.get("author")
+                        author = auth.get("name", "") if isinstance(auth, dict) else (auth or "")
+                        author = _clean(author)
+                        raw_date = c.get("date") or ""
+                        date_str = _fmt_date(raw_date) if raw_date else ""
+                        with st.container():
+                            line = f"`{commit_id}`"
+                            if author:
+                                line += f" — *{author}*"
+                            if date_str:
+                                line += f" · 📅 {date_str}"
+                            st.caption(line)
+                            st.text(msg)
+                            if i < len(commits) - 1:
+                                st.divider()
 
             files = r.get("files") or []
             if files:
