@@ -219,6 +219,21 @@ class AzureDevOpsClient:
             return []
         return data["value"]
 
+    def get_commit_by_id(self, repository_id: str, commit_id: str) -> Optional[dict]:
+        """Restituisce un singolo commit per ID (message, author, ecc.) o None."""
+        if not commit_id:
+            return None
+        path = f"/git/repositories/{repository_id}/commits"
+        for api_ver in (self._detected_git_api_version or API_VERSION, API_VERSION_ONPREM, "6.0", API_VERSION):
+            try:
+                params = {"api-version": api_ver, "$top": 1, "searchCriteria.ids": commit_id}
+                data = self._request("GET", path, params=params)
+                if data and data.get("value"):
+                    return data["value"][0]
+            except AzureDevOpsClientError:
+                continue
+        return None
+
     def get_commits_compare(
         self,
         repository_id: str,

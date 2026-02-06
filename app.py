@@ -24,7 +24,7 @@ from diff_service import (
 )
 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 logger = logging.getLogger(__name__)
@@ -91,47 +91,56 @@ def main():
     st.title("🔄 GitCheck – Confronto ambienti (no clone)")
     st.caption("Confronta SOURCE vs TARGET su più repository tramite Azure DevOps REST API.")
 
-    # ----- Config & connection -----
+    # ----- Config & connection (compatta) -----
     config = load_config()
-    base_url = st.text_input(
-        "Base URL (opzionale – per Azure DevOps Server on‑prem lasciare vuoto = cloud)",
-        value=config.get("base_url", ""),
-        key="base_url",
-        placeholder="es. http://azure.devops.prv:8080/test",
-    )
-    org = st.text_input("Organization (es. DefaultCollection)", value=config.get("organization", ""), key="org")
-    project = st.text_input("Project (es. APPMOBILE)", value=config.get("project", ""), key="project")
-    pat = st.text_input("PAT (Personal Access Token)", type="password", key="pat_input")
-    username = st.text_input("Username (opzionale, lasciare vuoto per solo PAT)", value=config.get("username", ""), key="username")
-
-    col1, col2, col3 = st.columns([1, 1, 2])
-    with col1:
-        if st.button("Test connessione"):
-            if not (org and project and pat):
-                st.error("Inserire Organization, Project e PAT.")
-            else:
-                try:
-                    client = get_client(org, project, pat, username, base_url)
-                    client.test_connection()
-                    api_ver = client.discover_git_api_version()
-                    st.success(f"Connessione riuscita. Api-version Git rilevata: **{api_ver}**")
-                except AzureDevOpsClientError as e:
-                    st.error(f"Errore: {e.message}")
-
-    with col2:
-        if st.button("Carica repository del progetto"):
-            if not (org and project and pat):
-                st.error("Inserire Organization, Project e PAT.")
-            else:
-                try:
-                    client = get_client(org, project, pat, username, base_url)
-                    repos = client.list_repositories()
-                    st.session_state[SESSION_REPOS] = repos
-                    st.session_state[SESSION_CLIENT] = client
-                    st.session_state[SESSION_PAT] = pat
-                    st.success(f"Caricati {len(repos)} repository.")
-                except AzureDevOpsClientError as e:
-                    st.error(f"Errore: {e.message}")
+    with st.container():
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            base_url = st.text_input(
+                "Base URL (on‑prem, vuoto = cloud)",
+                value=config.get("base_url", ""),
+                key="base_url",
+                placeholder="http://server:8080/tfs",
+            )
+        with c2:
+            org = st.text_input("Organization", value=config.get("organization", ""), key="org", placeholder="DefaultCollection")
+        with c3:
+            project = st.text_input("Project", value=config.get("project", ""), key="project", placeholder="EACS")
+        r2_1, r2_2, r2_3 = st.columns([2, 1, 1])
+        with r2_1:
+            pat = st.text_input("PAT", type="password", key="pat_input", placeholder="Personal Access Token")
+            username = st.text_input("Username (opz.)", value=config.get("username", ""), key="username", placeholder="vuoto per solo PAT")
+        with r2_2:
+            st.write("")  # allineamento
+            st.write("")
+            if st.button("Test connessione"):
+                if not (org and project and pat):
+                    st.error("Inserire Organization, Project e PAT.")
+                else:
+                    try:
+                        client = get_client(org, project, pat, username, base_url)
+                        client.test_connection()
+                        api_ver = client.discover_git_api_version()
+                        st.success(f"OK · Api: **{api_ver}**")
+                    except AzureDevOpsClientError as e:
+                        st.error(f"Errore: {e.message}")
+        with r2_3:
+            st.write("")
+            st.write("")
+            if st.button("Carica repository"):
+                if not (org and project and pat):
+                    st.error("Org, Project, PAT.")
+                else:
+                    try:
+                        client = get_client(org, project, pat, username, base_url)
+                        repos = client.list_repositories()
+                        st.session_state[SESSION_REPOS] = repos
+                        st.session_state[SESSION_CLIENT] = client
+                        st.session_state[SESSION_PAT] = pat
+                        st.success(f"**{len(repos)}** repo")
+                    except AzureDevOpsClientError as e:
+                        st.error(f"Errore: {e.message}")
+    st.markdown("---")
 
     repos = st.session_state.get(SESSION_REPOS) or []
     if not repos:
@@ -151,6 +160,10 @@ def main():
         else:
             st.session_state[SESSION_SELECTED_REPOS] = set()
 
+    # Ordinamento: nome A→Z o Z→A
+    sort_order = st.radio("Ordina", options=["Nome (A→Z)", "Nome (Z→A)"], horizontal=True, key="repo_sort")
+    repos_sorted = sorted(repos, key=lambda r: (r.get("name") or r.get("id") or "").lower(), reverse=(sort_order == "Nome (Z→A)"))
+
     all_col, none_col, _ = st.columns([1, 1, 4])
     with all_col:
         if st.button("Seleziona tutti"):
@@ -161,14 +174,19 @@ def main():
             toggle_all(False)
             st.rerun()
 
-    for repo in repos:
+    # Lista repo in più colonne (3) per usare lo spazio
+    N_COLS = 3
+    chunk = max(1, (len(repos_sorted) + N_COLS - 1) // N_COLS)
+    cols = st.columns(N_COLS)
+    for i, repo in enumerate(repos_sorted):
         rid = repo.get("id") or repo.get("name")
         name = repo.get("name", rid)
         checked = rid in selected_ids
-        if st.checkbox(name, value=checked, key=f"repo_{rid}"):
-            selected_ids.add(rid)
-        else:
-            selected_ids.discard(rid)
+        with cols[i % N_COLS]:
+            if st.checkbox(name, value=checked, key=f"repo_{rid}"):
+                selected_ids.add(rid)
+            else:
+                selected_ids.discard(rid)
     st.session_state[SESSION_SELECTED_REPOS] = selected_ids
 
     selected_repos = [r for r in repos if (r.get("id") or r.get("name")) in selected_ids]
@@ -178,39 +196,44 @@ def main():
 
     st.subheader("Definizione ambienti (SOURCE e TARGET)")
 
-    # SOURCE
-    st.markdown("**SOURCE** (es. Sviluppo / Collaudo)")
     src_config = st.session_state.get(SESSION_SOURCE) or config.get("source") or {}
-    src_type_label, src_type = REF_TYPES[src_config.get("ref_type_index", 0)]
-    src_type_index = st.selectbox(
-        "Tipo SOURCE",
-        options=[0, 1, 2],
-        format_func=lambda i: REF_TYPES[i][0],
-        index=src_config.get("ref_type_index", 0),
-        key="src_type",
-    )
-    src_value = st.text_input(
-        "Valore SOURCE (branch, pattern tag es. prod*, oppure SHA)",
-        value=src_config.get("value", "develop"),
-        key="src_value",
-    )
+    tgt_config = st.session_state.get(SESSION_TARGET) or config.get("target") or {}
+
+    # SOURCE e TARGET su una riga ciascuno: [Tipo] [Valore]
+    row_src_1, row_src_2 = st.columns([1, 3])
+    with row_src_1:
+        src_type_index = st.selectbox(
+            "Tipo SOURCE",
+            options=[0, 1, 2],
+            format_func=lambda i: REF_TYPES[i][0],
+            index=src_config.get("ref_type_index", 0),
+            key="src_type",
+        )
+    with row_src_2:
+        src_value = st.text_input(
+            "Valore SOURCE",
+            value=src_config.get("value", "develop"),
+            key="src_value",
+            placeholder="branch, tag pattern (prod*), o SHA",
+        )
     st.session_state[SESSION_SOURCE] = {"ref_type_index": src_type_index, "value": src_value}
 
-    # TARGET
-    st.markdown("**TARGET** (es. Collaudo / Produzione)")
-    tgt_config = st.session_state.get(SESSION_TARGET) or config.get("target") or {}
-    tgt_type_index = st.selectbox(
-        "Tipo TARGET",
-        options=[0, 1, 2],
-        format_func=lambda i: REF_TYPES[i][0],
-        index=tgt_config.get("ref_type_index", 0),
-        key="tgt_type",
-    )
-    tgt_value = st.text_input(
-        "Valore TARGET (branch, pattern tag es. prod*, oppure SHA)",
-        value=tgt_config.get("value", "master"),
-        key="tgt_value",
-    )
+    row_tgt_1, row_tgt_2 = st.columns([1, 3])
+    with row_tgt_1:
+        tgt_type_index = st.selectbox(
+            "Tipo TARGET",
+            options=[0, 1, 2],
+            format_func=lambda i: REF_TYPES[i][0],
+            index=tgt_config.get("ref_type_index", 0),
+            key="tgt_type",
+        )
+    with row_tgt_2:
+        tgt_value = st.text_input(
+            "Valore TARGET",
+            value=tgt_config.get("value", "master"),
+            key="tgt_value",
+            placeholder="branch, tag pattern (prod*), o SHA",
+        )
     st.session_state[SESSION_TARGET] = {"ref_type_index": tgt_type_index, "value": tgt_value}
 
     if st.button("Esegui confronto"):
@@ -276,18 +299,72 @@ def main():
             st.markdown(f"**SourceRef:** `{r.get('source_ref', '')}` → **TargetRef:** `{r.get('target_ref', '')}`")
             src_commit = r.get("source_commit") or ""
             tgt_commit = r.get("target_commit") or ""
+
+            def _clean(s: str) -> str:
+                if not s:
+                    return ""
+                s = s.strip().rstrip(" -=|")
+                return s
+
+            def _fmt_date(iso_date: str) -> str:
+                if not iso_date:
+                    return ""
+                try:
+                    from datetime import datetime
+                    dt = datetime.fromisoformat(iso_date.replace("Z", "+00:00"))
+                    return dt.strftime("%d/%m/%Y %H:%M")
+                except Exception:
+                    return iso_date[:19] if len(iso_date) >= 19 else iso_date
+
             if src_commit or tgt_commit:
                 st.markdown(f"**SOURCE commit:** `{src_commit}` · **TARGET commit:** `{tgt_commit}`")
+                src_msg = _clean(r.get("source_commit_message") or "")
+                src_auth = _clean(r.get("source_commit_author") or "")
+                src_date = _fmt_date(r.get("source_commit_date") or "")
+                tgt_msg = _clean(r.get("target_commit_message") or "")
+                tgt_auth = _clean(r.get("target_commit_author") or "")
+                tgt_date = _fmt_date(r.get("target_commit_date") or "")
+                c1, c2 = st.columns(2)
+                with c1:
+                    st.markdown("**SOURCE**")
+                    if src_commit:
+                        st.caption(f"`{src_commit}`" + (f" — *{src_auth}*" if src_auth else ""))
+                    if src_date:
+                        st.caption(f"📅 {src_date}")
+                    st.text(src_msg or "(nessun messaggio)")
+                with c2:
+                    st.markdown("**TARGET**")
+                    if tgt_commit:
+                        st.caption(f"`{tgt_commit}`" + (f" — *{tgt_auth}*" if tgt_auth else ""))
+                    if tgt_date:
+                        st.caption(f"📅 {tgt_date}")
+                    st.text(tgt_msg or "(nessun messaggio)")
+                st.divider()
             if r.get("note"):
                 st.caption(r["note"])
 
             commits = r.get("commits") or []
             if commits:
                 st.markdown("**Commit (SOURCE non in TARGET):**")
-                for c in commits:
-                    msg = (c.get("comment") or "").strip() or "(nessun messaggio)"
-                    st.markdown(f"- **{msg}**")
-                    st.caption(f"`{c.get('commitId', '')}` — {c.get('author', '')}")
+                for i, c in enumerate(commits):
+                    raw_msg = c.get("comment") or ""
+                    msg = _clean(raw_msg) or "(nessun messaggio)"
+                    commit_id = (c.get("commitId") or "")[:7]
+                    auth = c.get("author")
+                    author = auth.get("name", "") if isinstance(auth, dict) else (auth or "")
+                    author = _clean(author)
+                    raw_date = c.get("date") or ""
+                    date_str = _fmt_date(raw_date) if raw_date else ""
+                    with st.container():
+                        line = f"`{commit_id}`"
+                        if author:
+                            line += f" — *{author}*"
+                        if date_str:
+                            line += f" · 📅 {date_str}"
+                        st.caption(line)
+                        st.text(msg)
+                        if i < len(commits) - 1:
+                            st.divider()
 
             files = r.get("files") or []
             if files:

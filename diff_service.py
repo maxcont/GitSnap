@@ -56,6 +56,12 @@ def get_diff_for_repo(
         "target_ref": target_display,
         "source_commit": (source_commit or "")[:7],
         "target_commit": (target_commit or "")[:7],
+        "source_commit_message": "",
+        "source_commit_author": "",
+        "source_commit_date": "",
+        "target_commit_message": "",
+        "target_commit_author": "",
+        "target_commit_date": "",
         "ahead_count": 0,
         "behind_count": 0,
     }
@@ -135,6 +141,19 @@ def get_diff_for_repo(
 
     result["source_commit"] = (source_commit or "")[:7]
     result["target_commit"] = (target_commit or "")[:7]
+    # Dettaglio messaggio e autore per SOURCE e TARGET commit
+    if source_commit:
+        src_c = client.get_commit_by_id(repository_id, source_commit)
+        if src_c:
+            result["source_commit_message"] = (src_c.get("comment") or "").strip()
+            result["source_commit_author"] = (src_c.get("author") or {}).get("name", "")
+            result["source_commit_date"] = (src_c.get("committer") or src_c.get("author") or {}).get("date", "")
+    if target_commit:
+        tgt_c = client.get_commit_by_id(repository_id, target_commit)
+        if tgt_c:
+            result["target_commit_message"] = (tgt_c.get("comment") or "").strip()
+            result["target_commit_author"] = (tgt_c.get("author") or {}).get("name", "")
+            result["target_commit_date"] = (tgt_c.get("committer") or tgt_c.get("author") or {}).get("date", "")
     return result
 
 
