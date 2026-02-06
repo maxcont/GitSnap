@@ -108,12 +108,12 @@ def get_client(
 
 def main():
     st.set_page_config(
-        page_title="GitCheck - Confronto ambienti Azure DevOps",
+        page_title="GitSnap - Confronto ambienti",
         page_icon="🔄",
         layout="wide",
         initial_sidebar_state="collapsed",
     )
-    st.title("🔄 GitCheck – Confronto ambienti (no clone)")
+    st.title("🔄 GitSnap – Confronto ambienti")
     st.caption("Confronta SOURCE vs TARGET su più repository tramite Azure DevOps REST API.")
 
     config = load_config()

@@ -2,7 +2,7 @@ import shutil
 from pathlib import Path
 
 # ===== CONFIG =====
-APP_NAME = "GitCheck"
+APP_NAME = "GitSnap"
 
 # Root progetto = padre di /scripts
 ROOT = Path(__file__).parent.parent.resolve()
