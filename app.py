@@ -5,6 +5,7 @@ confronto differenze e dashboard risultati. Nessun clone, solo REST API.
 
 import json
 import logging
+import time
 import uuid
 from pathlib import Path
 
@@ -217,13 +218,28 @@ def main():
             org = st.text_input("Organization", key="org", placeholder="DefaultCollection")
         with c3:
             project = st.text_input("Project", key="project", placeholder="EACS")
-        r2_1, r2_2, r2_3 = st.columns([2, 1, 1])
+        r2_1, r2_2 = st.columns(2)
         with r2_1:
             pat = st.text_input("PAT", type="password", key="pat_input", placeholder="Personal Access Token")
-            username = st.text_input("Username (opz.)", key="username", placeholder="vuoto per solo PAT")
         with r2_2:
-            st.write("")  # allineamento
-            st.write("")
+            username = st.text_input("Username (opz.)", key="username", placeholder="vuoto per solo PAT")
+        @st.fragment(run_every=1 if st.session_state.get("test_conn_ok") else None)
+        def _clear_test_ok_after():
+            if "test_conn_ok" in st.session_state:
+                _, ts = st.session_state["test_conn_ok"]
+                if time.time() - ts >= 4:
+                    del st.session_state["test_conn_ok"]
+                    st.rerun()
+
+        _clear_test_ok_after()
+
+        if st.session_state.get("test_conn_ok"):
+            api_ver, ts = st.session_state["test_conn_ok"]
+            if time.time() - ts < 4:
+                st.success(f"OK · Api {api_ver}")
+
+        btn_1, btn_2 = st.columns(2)
+        with btn_1:
             if st.button("Test connessione"):
                 if not (org and project and pat):
                     st.error("Inserire Organization, Project e PAT.")
@@ -232,13 +248,14 @@ def main():
                         client = get_client(org, project, pat, username, base_url)
                         client.test_connection()
                         api_ver = client.discover_git_api_version()
-                        st.success(f"OK · Api: **{api_ver}**")
+                        st.session_state["test_conn_ok"] = (api_ver, time.time())
+                        st.rerun()
                     except AzureDevOpsClientError as e:
                         st.error(f"Errore: {e.message}")
-        with r2_3:
-            st.write("")
-            st.write("")
+        with btn_2:
             if st.button("Carica repository"):
+                if "test_conn_ok" in st.session_state:
+                    del st.session_state["test_conn_ok"]
                 if not (org and project and pat):
                     st.error("Org, Project, PAT.")
                 else:
@@ -282,11 +299,8 @@ def main():
     selected_ids = _get_selected_ids()
     st.session_state[SESSION_SELECTED_REPOS] = selected_ids
 
-    # Ordinamento: nome A→Z o Z→A
-    sort_order = st.radio("Ordina", options=["Nome (A→Z)", "Nome (Z→A)"], horizontal=True, key="repo_sort")
-    repos_sorted = sorted(repos, key=lambda r: (r.get("name") or r.get("id") or "").lower(), reverse=(sort_order == "Nome (Z→A)"))
-
-    all_col, none_col, _ = st.columns([1, 1, 4])
+    sort_options = ["Nome (A→Z)", "Nome (Z→A)"]
+    all_col, none_col, spacer, ordina_col = st.columns([1, 1, 3, 1])
     with all_col:
         if st.button("Seleziona tutti"):
             toggle_all(True)
@@ -295,9 +309,12 @@ def main():
         if st.button("Deseleziona tutti"):
             toggle_all(False)
             st.rerun()
+    with ordina_col:
+        sort_order = st.selectbox("Ordina", options=sort_options, key="repo_sort")
+    repos_sorted = sorted(repos, key=lambda r: (r.get("name") or r.get("id") or "").lower(), reverse=(sort_order == "Nome (Z→A)"))
 
-    # Lista repo in più colonne (3) per usare lo spazio
-    N_COLS = 3
+    # Lista repo in 4 colonne
+    N_COLS = 4
     cols = st.columns(N_COLS)
     for i, repo in enumerate(repos_sorted):
         rid = repo.get("id") or repo.get("name")
@@ -314,7 +331,8 @@ def main():
         st.warning("Seleziona almeno un repository.")
         st.stop()
 
-    st.subheader("Definizione ambienti (SOURCE e TARGET)")
+    st.divider()
+    st.subheader("Definizione ambienti")
 
     src_config = st.session_state.get(SESSION_SOURCE) or config.get("source") or {}
     tgt_config = st.session_state.get(SESSION_TARGET) or config.get("target") or {}
@@ -398,8 +416,11 @@ def main():
             st.success("Configurazione salvata in config.json.")
         return
 
-    st.subheader("Dashboard risultati")
-    show_only_divergent = st.checkbox("Mostra solo divergenti", value=False, key="filter_div")
+    dash_title, dash_filter = st.columns([3, 1])
+    with dash_title:
+        st.subheader("Dashboard risultati")
+    with dash_filter:
+        show_only_divergent = st.checkbox("Mostra solo divergenti", value=False, key="filter_div")
 
     rows = diff_results
     if show_only_divergent:
@@ -416,9 +437,10 @@ def main():
         with st.expander(f"{status_icon(r.get('status', ''))} — {r.get('repo_name', '')}"):
             st.markdown(f"**Stato:** {status_icon(r.get('status', ''))}")
             st.markdown(f"**#Commit diff:** {r.get('commit_count', 0)} | **#File diff:** {r.get('file_count', 0)}")
-            st.markdown(f"**SourceRef:** `{r.get('source_ref', '')}` → **TargetRef:** `{r.get('target_ref', '')}`")
             src_commit = r.get("source_commit") or ""
             tgt_commit = r.get("target_commit") or ""
+            source_ref = r.get("source_ref", "")
+            target_ref = r.get("target_ref", "")
 
             def _clean(s: str) -> str:
                 if not s:
@@ -436,30 +458,32 @@ def main():
                 except Exception:
                     return iso_date[:19] if len(iso_date) >= 19 else iso_date
 
-            if src_commit or tgt_commit:
-                st.markdown(f"**SOURCE commit:** `{src_commit}` · **TARGET commit:** `{tgt_commit}`")
-                src_msg = _clean(r.get("source_commit_message") or "")
-                src_auth = _clean(r.get("source_commit_author") or "")
-                src_date = _fmt_date(r.get("source_commit_date") or "")
-                tgt_msg = _clean(r.get("target_commit_message") or "")
-                tgt_auth = _clean(r.get("target_commit_author") or "")
-                tgt_date = _fmt_date(r.get("target_commit_date") or "")
-                c1, c2 = st.columns(2)
-                with c1:
-                    st.markdown("**SOURCE**")
-                    if src_commit:
-                        st.caption(f"`{src_commit}`" + (f" — *{src_auth}*" if src_auth else ""))
-                    if src_date:
-                        st.caption(f"📅 {src_date}")
-                    st.text(src_msg or "(nessun messaggio)")
-                with c2:
-                    st.markdown("**TARGET**")
-                    if tgt_commit:
-                        st.caption(f"`{tgt_commit}`" + (f" — *{tgt_auth}*" if tgt_auth else ""))
-                    if tgt_date:
-                        st.caption(f"📅 {tgt_date}")
-                    st.text(tgt_msg or "(nessun messaggio)")
-                st.divider()
+            src_msg = _clean(r.get("source_commit_message") or "")
+            src_auth = _clean(r.get("source_commit_author") or "")
+            src_date = _fmt_date(r.get("source_commit_date") or "")
+            tgt_msg = _clean(r.get("target_commit_message") or "")
+            tgt_auth = _clean(r.get("target_commit_author") or "")
+            tgt_date = _fmt_date(r.get("target_commit_date") or "")
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown("**SOURCE**")
+                if source_ref:
+                    st.caption(f"Ref: `{source_ref}`")
+                if src_commit:
+                    st.caption(f"Commit: `{src_commit}`" + (f" — *{src_auth}*" if src_auth else ""))
+                if src_date:
+                    st.caption(f"📅 {src_date}")
+                st.text(src_msg or "(nessun messaggio)")
+            with c2:
+                st.markdown("**TARGET**")
+                if target_ref:
+                    st.caption(f"Ref: `{target_ref}`")
+                if tgt_commit:
+                    st.caption(f"Commit: `{tgt_commit}`" + (f" — *{tgt_auth}*" if tgt_auth else ""))
+                if tgt_date:
+                    st.caption(f"📅 {tgt_date}")
+                st.text(tgt_msg or "(nessun messaggio)")
+            st.divider()
             if r.get("note"):
                 st.caption(r["note"])
 
