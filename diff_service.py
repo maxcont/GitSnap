@@ -54,6 +54,8 @@ def get_diff_for_repo(
         "note": "",
         "source_ref": source_display,
         "target_ref": target_display,
+        "source_commit": (source_commit or "")[:7],
+        "target_commit": (target_commit or "")[:7],
         "ahead_count": 0,
         "behind_count": 0,
     }
@@ -78,6 +80,8 @@ def get_diff_for_repo(
         )
     except AzureDevOpsClientError as e:
         result["note"] = e.message or str(e)
+        result["source_commit"] = (source_commit or "")[:7]
+        result["target_commit"] = (target_commit or "")[:7]
         if e.status_code == 404:
             result["note"] = "Ref non trovato o repository inaccessibile."
         return result
@@ -120,7 +124,7 @@ def get_diff_for_repo(
             result["commits"] = [
                 {
                     "commitId": c.get("commitId", "")[:7],
-                    "comment": (c.get("comment") or "")[:80],
+                    "comment": (c.get("comment") or "").strip(),
                     "author": (c.get("author") or {}).get("name", ""),
                     "date": (c.get("committer") or c.get("author") or {}).get("date", ""),
                 }
@@ -129,6 +133,8 @@ def get_diff_for_repo(
         except AzureDevOpsClientError:
             result["commits"] = []
 
+    result["source_commit"] = (source_commit or "")[:7]
+    result["target_commit"] = (target_commit or "")[:7]
     return result
 
 
@@ -159,6 +165,8 @@ def get_diffs_for_repos(
                 "note": "Repo senza id",
                 "source_ref": "",
                 "target_ref": "",
+                "source_commit": "",
+                "target_commit": "",
             })
             continue
 
@@ -177,6 +185,8 @@ def get_diffs_for_repos(
                 "note": f"SOURCE: {src.get('error')}",
                 "source_ref": src.get("display_ref") or "",
                 "target_ref": tgt.get("display_ref") or "",
+                "source_commit": (src.get("commit_id") or "")[:7],
+                "target_commit": (tgt.get("commit_id") or "")[:7],
             })
             continue
         if tgt.get("error"):
@@ -191,6 +201,8 @@ def get_diffs_for_repos(
                 "note": f"TARGET: {tgt.get('error')}",
                 "source_ref": src.get("display_ref") or "",
                 "target_ref": tgt.get("display_ref") or "",
+                "source_commit": (src.get("commit_id") or "")[:7],
+                "target_commit": (tgt.get("commit_id") or "")[:7],
             })
             continue
 
@@ -208,6 +220,8 @@ def get_diffs_for_repos(
                 "note": "Ref non risolto",
                 "source_ref": src.get("display_ref") or "",
                 "target_ref": tgt.get("display_ref") or "",
+                "source_commit": (source_commit or "")[:7],
+                "target_commit": (target_commit or "")[:7],
             })
             continue
 

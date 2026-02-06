@@ -274,19 +274,25 @@ def main():
             st.markdown(f"**Stato:** {status_icon(r.get('status', ''))}")
             st.markdown(f"**#Commit diff:** {r.get('commit_count', 0)} | **#File diff:** {r.get('file_count', 0)}")
             st.markdown(f"**SourceRef:** `{r.get('source_ref', '')}` → **TargetRef:** `{r.get('target_ref', '')}`")
+            src_commit = r.get("source_commit") or ""
+            tgt_commit = r.get("target_commit") or ""
+            if src_commit or tgt_commit:
+                st.markdown(f"**SOURCE commit:** `{src_commit}` · **TARGET commit:** `{tgt_commit}`")
             if r.get("note"):
                 st.caption(r["note"])
 
             commits = r.get("commits") or []
             if commits:
-                st.markdown("**Ultimi commit (SOURCE non in TARGET):**")
+                st.markdown("**Commit (SOURCE non in TARGET):**")
                 for c in commits:
-                    st.code(f"{c.get('commitId', '')} {c.get('comment', '')} ({c.get('author', '')})")
+                    msg = (c.get("comment") or "").strip() or "(nessun messaggio)"
+                    st.markdown(f"- **{msg}**")
+                    st.caption(f"`{c.get('commitId', '')}` — {c.get('author', '')}")
 
             files = r.get("files") or []
             if files:
-                st.markdown("**File modificati (max 100):**")
-                st.text("\n".join(files[:100]))
+                with st.expander(f"📁 File modificati ({len(files)})", expanded=False):
+                    st.text("\n".join(files[:100]))
 
             repo_id = r.get("repo_id")
             repo_name = r.get("repo_name", "")
