@@ -14,11 +14,18 @@ Consente al team di rispondere in pochi secondi a:
 - [Requisiti](#requisiti)
 - [Installazione](#installazione)
 - [Avvio dell'applicazione](#avvio-dellapplicazione)
+- [Avvio rapido (Windows)](#avvio-rapido-windows)
 - [Utilizzo passo-passo](#utilizzo-passo-passo)
 - [Schermate e funzionalità](#schermate-e-funzionalità)
+- [Progetti salvati (sidebar e projects.json)](#progetti-salvati-sidebar-e-projectsjson)
 - [Esempi d'uso](#esempi-duso)
 - [Configurazione persistente (config.json)](#configurazione-persistente-configjson)
+- [File del progetto](#file-del-progetto)
 - [Architettura del codice](#architettura-del-codice)
+- [Eseguire in debug (Cursor / VS Code)](#eseguire-in-debug-cursor--vs-code)
+- [Api-version](#api-version-quale-versione-usa-il-server)
+- [Test API con Postman](#test-api-con-postman)
+- [Build pacchetto (output)](#build-pacchetto-output)
 - [Risoluzione problemi](#risoluzione-problemi)
 - [Vincoli tecnici](#vincoli-tecnici)
 
@@ -109,29 +116,42 @@ python -m streamlit run app.py
 - Per usare un’altra porta: `streamlit run app.py --server.port 8502`.
 - Per aprire senza browser automatico: `streamlit run app.py --server.headless true`.
 
+### Avvio rapido (Windows)
+
+Nella cartella del progetto è presente **`Avvia.bat`** che:
+- si sposta nella cartella dello script;
+- verifica la presenza del virtual environment (`.venv`);
+- attiva `.venv` e avvia Streamlit sulla porta **8501** con `--server.headless true`;
+- apre il browser su `http://localhost:8501`.
+
+Esecuzione: doppio clic su `Avvia.bat` oppure da prompt `Avvia.bat`. Richiede che `.venv` sia già stato creato e che le dipendenze siano installate (`pip install -r requirements.txt`).
+
 ---
 
 ## Utilizzo passo-passo
 
-1. **Configurazione connessione**  
-   Inserisci **Base URL** (solo se usi Azure DevOps Server on‑prem, es. `http://gswvwtfs1.ternaren.prv:8080/tfs`), Organization, Project e PAT (e opzionalmente Username).  
-   Clicca **"Test connessione"** per verificare, poi **"Carica repository del progetto"**.
+1. **(Opzionale) Progetti salvati**  
+   Apri la **sidebar** (freccia in alto a sinistra). Puoi **aggiungere** più progetti (Base URL, Organization, Project, Username, PAT opzionale) salvati in `projects.json`, **caricare** uno per precompilare i campi in pagina, o **eliminare** un progetto. La sidebar è nascosta di default (`initial_sidebar_state="collapsed"`).
 
-2. **Selezione repository**  
-   Nella lista con i checkbox seleziona i repo da confrontare (o **"Seleziona tutti"**).
+2. **Configurazione connessione**  
+   Inserisci **Base URL** (solo se usi Azure DevOps Server on‑prem), Organization, Project e PAT (e opzionalmente Username). I campi possono essere precompilati da config o da un progetto caricato dalla sidebar.  
+   Clicca **"Test connessione"** per verificare, poi **"Carica repository"**.
 
-3. **Definizione ambienti**  
+3. **Selezione repository**  
+   Nella lista con i checkbox seleziona i repo da confrontare. Usa **"Seleziona tutti"** o **"Deseleziona tutti"** per aggiornare tutti i flag in un colpo solo. Puoi ordinare per nome (A→Z o Z→A).
+
+4. **Definizione ambienti**  
    - **SOURCE**: tipo (Branch / Tag pattern / Commit SHA) e valore (es. `develop` o `prod*`).  
    - **TARGET**: stesso schema (es. `master` o un tag pattern).
 
-4. **Esecuzione confronto**  
+5. **Esecuzione confronto**  
    Clicca **"Esegui confronto"**. L’app risolve i ref per ogni repo e chiama l’API `diffs/commits`.
 
-5. **Lettura risultati**  
-   Nella dashboard vedi per ogni repo: stato (Allineato / Divergente / Errore), #commit e #file diff. Apri gli expander per commit e file; usa il link per aprire la compare in Azure DevOps.
+6. **Lettura risultati**  
+   Nella dashboard vedi per ogni repo: stato (Allineato / Divergente / Errore), #commit e #file diff. In ogni expander: **SOURCE** e **TARGET** in due colonne con commit ID, autore, data e messaggio; lista **Commit (SOURCE non in TARGET)** con autore e data; **File modificati** in expander; link **"Apri Compare in Azure DevOps"**.
 
-6. **Salvataggio configurazione (opzionale)**  
-   Clicca **"Salva configurazione (senza PAT)"** per salvare org, project, repo selezionati e definizione SOURCE/TARGET in `config.json`. Il PAT **non** viene salvato.
+7. **Salvataggio configurazione (opzionale)**  
+   Clicca **"Salva configurazione (senza PAT)"** per salvare org, project, repo selezionati e definizione SOURCE/TARGET in `config.json`. Il PAT **non** viene salvato in `config.json` (in `projects.json` può essere salvato opzionalmente dalla sidebar).
 
 ---
 
@@ -151,7 +171,7 @@ python -m streamlit run app.py
 
 **Azioni:**
 - **Test connessione**: verifica credenziali e accesso al progetto.
-- **Carica repository del progetto**: chiama l’API [Git Repositories List](https://learn.microsoft.com/en-us/rest/api/azure/devops/git/repositories/list) e mostra l’elenco dei repo con checkbox e **"Seleziona tutti"** / **"Deseleziona tutti"**.
+- **Carica repository**: chiama l’API [Git Repositories List](https://learn.microsoft.com/en-us/rest/api/azure/devops/git/repositories/list) e mostra l’elenco dei repo con checkbox. **"Seleziona tutti"** e **"Deseleziona tutti"** aggiornano correttamente tutti i flag (stato sincronizzato con la session state).
 
 ### 2. Definizione ambienti (SOURCE e TARGET)
 
@@ -194,16 +214,49 @@ Tabella riepilogativa:
 
 **Funzioni UI:**
 - **Filtro "Mostra solo divergenti"**: nasconde repo allineati ed errori.
-- **Expander per repo**: dettaglio con lista commit e lista file + link **"Apri Compare in Azure DevOps"** (compare tra i due ref nel portale).
+- **Expander per repo**: **SOURCE** e **TARGET** in due colonne (commit ID, autore, data gg/mm/aaaa HH:mm, messaggio); lista **Commit (SOURCE non in TARGET)** con autore e data; **File modificati** in expander; link **"Apri Compare in Azure DevOps"**.
 
 ### 5. Persistenza configurazione
 
 - **Salva configurazione**: scrive in `config.json` (nella cartella del progetto):
-  - organization, project, username (se usato);
+  - base_url, organization, project, username (se usato);
   - ID dei repo selezionati;
   - definizione SOURCE e TARGET (tipo + valore).
-- **Il PAT non viene mai salvato** in `config.json` (solo in memoria nella sessione Streamlit).
-- All’avvio, se esiste `config.json`, l’app precompila organization, project, username e (se presenti) i repo selezionati e SOURCE/TARGET.
+- **Il PAT non viene mai salvato** in `config.json` (solo in memoria). Può essere salvato opzionalmente in `projects.json` dalla sidebar.
+- All’avvio, se esiste `config.json`, l’app precompila i campi (base_url, org, project, username) e (se presenti) i repo selezionati e SOURCE/TARGET.
+
+---
+
+## Progetti salvati (sidebar e projects.json)
+
+Il **pannello laterale** è nascosto di default; si apre con la freccia in alto a sinistra.
+
+| Funzione | Descrizione |
+|---------|-------------|
+| **Progetto salvato** | Select + **"Carica progetto"**: carica Base URL, Organization, Project, Username e PAT (se presente) nei campi in pagina. Poi rieseguire "Carica repository". |
+| **Aggiungi progetto** | Expander "Nuovo progetto": Nome, Base URL, Organization, Project, Username, PAT (opzionale). **Salva progetto** aggiunge la voce a `projects.json`. |
+| **Elimina progetto** | Select + **Elimina** per rimuovere un progetto da `projects.json`. |
+
+**File `projects.json`** (stessa cartella di `app.py`):
+
+```json
+{
+  "projects": [
+    {
+      "id": "uuid-corto",
+      "name": "Nome progetto",
+      "base_url": "http://server:8080/tfs",
+      "organization": "DefaultCollection",
+      "project": "EACS",
+      "username": "",
+      "pat": ""
+    }
+  ]
+}
+```
+
+- **pat**: opzionale; se compilato viene salvato in chiaro. Valuta di escludere `projects.json` dal repo (es. `.gitignore`) se contiene PAT.
+- **id**: generato automaticamente all'aggiunta.
 
 ---
 
@@ -255,14 +308,34 @@ Per on‑prem, `base_url` può essere ad es. `http://gswvwtfs1.ternaren.prv:8080
 
 ---
 
+## File del progetto
+
+| File / cartella | Descrizione |
+|-----------------|-------------|
+| **app.py** | UI Streamlit: configurazione, sidebar progetti, lista repo, SOURCE/TARGET, confronto, dashboard. |
+| **azure_devops_client.py** | Client REST Azure DevOps: autenticazione, list repositories, refs, commits, get_commit_by_id, diffs/commits, discovery api-version. |
+| **ref_resolver.py** | Risoluzione branch / tag pattern / commit SHA in commit ID per ogni repo. |
+| **diff_service.py** | Chiamate diffs/commits, costruzione risultato con commit e dettaglio SOURCE/TARGET (messaggio, autore, data). |
+| **config.json** | Configurazione persistente (base_url, org, project, username, selected_repo_ids, source/target). Non contiene PAT. |
+| **projects.json** | Elenco progetti salvati (sidebar): base_url, organization, project, username, pat opzionale. |
+| **requirements.txt** | Dipendenze: `requests`, `streamlit`. |
+| **Avvia.bat** | Script Windows per avviare l'app con `.venv` attivo e browser su localhost:8501. |
+| **.streamlit/config.toml** | Configurazione Streamlit (es. `gatherUsageStats = false`). |
+| **.vscode/launch.json** | Configurazioni debug (Streamlit: debug app.py, con/senza headless). |
+| **scripts/build_output.py** | Script per creare un pacchetto in `output/GitCheck` (copia app, moduli, config, projects, requirements, README, .streamlit, Avvia.bat, .venv). |
+| **POSTMAN_REQUESTS.md** | Istruzioni e richieste Postman per testare le API Azure DevOps (connessione, api-version, refs, commits, diffs). |
+| **GitCheck_Postman_Collection.json** | Collection Postman importabile (variabili BASE_URL, ORG, PROJECT, REPO_ID, PAT). |
+
+---
+
 ## Architettura del codice
 
 | File | Ruolo |
 |------|--------|
-| **azure_devops_client.py** | Autenticazione (PAT + opzionale username), session HTTP, retry con backoff, chiamate a: list repositories, refs, commits, get commits compare, diffs/commits. |
-| **ref_resolver.py** | Risolve per ogni repo: branch → commit ID, tag pattern → tag più recente → commit ID, SHA → commit ID. Gestisce ref mancanti. |
-| **diff_service.py** | Per ogni repo: chiama `diffs/commits` (base=TARGET, target=SOURCE), parsing di changeCounts/changes/aheadCount; opzionale lista commit (API Get Commits con compareVersion). Restituisce stato (aligned/divergent/error), conteggi, liste. |
-| **app.py** | UI Streamlit: form connessione, lista repo con checkbox, form SOURCE/TARGET, pulsante confronto, dashboard con tabella, filtri, expander, salvataggio/caricamento config. |
+| **azure_devops_client.py** | Autenticazione (PAT + opzionale username), session HTTP, retry con backoff, discovery api-version (5.0/6.0/7.1), list repositories, refs, commits, get_commit_by_id, get_commits_compare, diffs/commits. |
+| **ref_resolver.py** | Risolve per ogni repo: branch → commit ID, tag pattern → tag più recente (per data) → commit ID, SHA → commit ID. Gestisce ref mancanti. |
+| **diff_service.py** | Per ogni repo: chiama `diffs/commits` (base=TARGET, target=SOURCE), parsing changeCounts/changes/aheadCount; lista commit (Get Commits compare); dettaglio SOURCE/TARGET (get_commit_by_id per messaggio, autore, data). Restituisce stato (aligned/divergent/error), conteggi, liste. |
+| **app.py** | UI Streamlit: sidebar progetti (carica/aggiungi/elimina), form connessione, lista repo con Seleziona tutti/Deseleziona tutti, form SOURCE/TARGET, confronto, dashboard (expander con SOURCE/TARGET a colonne, commit con autore/data, file modificati), salvataggio config e progetti. |
 
 **Gestione errori e logging:** eccezioni `AzureDevOpsClientError`, messaggi in dashboard e log con modulo `logging`.
 
@@ -284,6 +357,32 @@ Per on‑prem, `base_url` può essere ad es. `http://gswvwtfs1.ternaren.prv:8080
 ## Api-version (quale versione usa il server?)
 
 Non esiste un endpoint REST che restituisce la “versione API supportata”. GitCheck **rileva automaticamente** la versione usabile: prova in ordine 5.0, 6.0, 7.1 sulle API Git e usa la prima che risponde. Dopo **Test connessione** vedrai in verde: *"Connessione riuscita. Api-version Git rilevata: 5.0"* (o 6.0 / 7.1). In alternativa puoi aprire **Help → About** nel portale Azure DevOps per vedere la versione del prodotto (2019 → api fino a 5.0, 2020 → 6.0, 2022 → 7.x).
+
+---
+
+## Test API con Postman
+
+Per testare a mano le API Azure DevOps (connessione, lista repo, refs, api-version, commits, diffs) senza usare l'app:
+
+1. **Importa la collection**: in Postman, **Import** → scegli **`GitCheck_Postman_Collection.json`** (nella cartella del progetto). Imposta la variabile **PAT** (Current Value) con il tuo token.
+2. **Leggi le istruzioni**: apri **`POSTMAN_REQUESTS.md`** per le URL, i parametri e gli esempi (BASE_URL, ORG, PROJECT, REPO_ID, Basic Auth con PAT).
+3. Le richieste coprono: connessione + lista repository, scoperta api-version (5.0 / 6.0 / 7.1), ref (tutti o filtrati), commit su branch, diff tra due commit.
+
+---
+
+## Build pacchetto (output)
+
+Lo script **`scripts/build_output.py`** crea un pacchetto pronto da copiare (es. su un altro PC) nella cartella **`output/GitCheck`**.
+
+**Contenuto copiato:** `app.py`, `azure_devops_client.py`, `diff_service.py`, `ref_resolver.py`, `config.json`, `projects.json`, `requirements.txt`, `README.md`, `.streamlit`, `Avvia.bat`, `.venv`. Esclusi: `__pycache__`, `.vscode`, `.git`, `output`.
+
+**Esecuzione:** dalla root del progetto:
+
+```bash
+python scripts/build_output.py
+```
+
+Pacchetto in `output/GitCheck`; da lì attivare `.venv`, installare dipendenze se necessario, e avviare con `Avvia.bat` o `streamlit run app.py`.
 
 ---
 

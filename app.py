@@ -5,6 +5,7 @@ confronto differenze e dashboard risultati. Nessun clone, solo REST API.
 
 import json
 import logging
+import uuid
 from pathlib import Path
 
 import streamlit as st
@@ -30,6 +31,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 CONFIG_FILE = Path(__file__).resolve().parent / "config.json"
+PROJECTS_FILE = Path(__file__).resolve().parent / "projects.json"
 SESSION_PAT = "pat"
 SESSION_CLIENT = "client"
 SESSION_REPOS = "repos"
@@ -37,6 +39,7 @@ SESSION_SELECTED_REPOS = "selected_repos"
 SESSION_SOURCE = "source"
 SESSION_TARGET = "target"
 SESSION_DIFF_RESULTS = "diff_results"
+SESSION_CURRENT_PROJECT_ID = "current_project_id"
 
 REF_TYPES = [
     ("Branch", REF_TYPE_BRANCH),
@@ -66,6 +69,26 @@ def save_config(config: dict) -> None:
         logger.warning("Save config failed: %s", e)
 
 
+def load_projects() -> list[dict]:
+    if not PROJECTS_FILE.exists():
+        return []
+    try:
+        with open(PROJECTS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data.get("projects", data) if isinstance(data, dict) else (data if isinstance(data, list) else [])
+    except Exception as e:
+        logger.warning("Load projects failed: %s", e)
+        return []
+
+
+def save_projects(projects: list[dict]) -> None:
+    try:
+        with open(PROJECTS_FILE, "w", encoding="utf-8") as f:
+            json.dump({"projects": projects}, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        logger.warning("Save projects failed: %s", e)
+
+
 def get_client(
     org: str,
     project: str,
@@ -87,29 +110,117 @@ def main():
         page_title="GitCheck - Confronto ambienti Azure DevOps",
         page_icon="🔄",
         layout="wide",
+        initial_sidebar_state="collapsed",
     )
     st.title("🔄 GitCheck – Confronto ambienti (no clone)")
     st.caption("Confronta SOURCE vs TARGET su più repository tramite Azure DevOps REST API.")
 
-    # ----- Config & connection (compatta) -----
     config = load_config()
+    projects_list = load_projects()
+
+    # ----- Sidebar: Progetti (pannello opzioni) -----
+    with st.sidebar:
+        st.subheader("📁 Progetti")
+        st.caption("Salva e carica configurazioni (Base URL, Org, Project, PAT opzionale).")
+        if not projects_list:
+            st.info("Nessun progetto salvato. Aggiungine uno sotto.")
+        else:
+            options = ["— Seleziona progetto —"] + [f"{p.get('name', p.get('project', ''))} ({p.get('organization', '')}/{p.get('project', '')})" for p in projects_list]
+            idx = 0
+            current_id = st.session_state.get(SESSION_CURRENT_PROJECT_ID)
+            if current_id:
+                for i, p in enumerate(projects_list):
+                    if p.get("id") == current_id:
+                        idx = i + 1
+                        break
+            sel = st.selectbox("Progetto salvato", options=options, index=idx, key="sidebar_project_sel")
+            if sel and sel != "— Seleziona progetto —":
+                proj_idx = options.index(sel) - 1
+                proj = projects_list[proj_idx]
+                if st.button("Carica progetto", key="sidebar_load"):
+                    st.session_state["base_url"] = proj.get("base_url", "")
+                    st.session_state["org"] = proj.get("organization", "")
+                    st.session_state["project"] = proj.get("project", "")
+                    st.session_state["username"] = proj.get("username", "")
+                    st.session_state["pat_input"] = proj.get("pat", "")
+                    st.session_state[SESSION_CURRENT_PROJECT_ID] = proj.get("id")
+                    st.session_state[SESSION_REPOS] = []
+                    st.session_state[SESSION_CLIENT] = None
+                    st.rerun()
+                st.session_state[SESSION_CURRENT_PROJECT_ID] = proj.get("id") if sel != "— Seleziona progetto —" else None
+
+        st.markdown("---")
+        st.markdown("**Aggiungi progetto**")
+        with st.expander("Nuovo progetto", expanded=False):
+            add_name = st.text_input("Nome progetto", key="add_proj_name", placeholder="es. EACS Produzione")
+            add_base = st.text_input("Base URL", key="add_proj_base", placeholder="vuoto = cloud")
+            add_org = st.text_input("Organization", key="add_proj_org", placeholder="DefaultCollection")
+            add_proj = st.text_input("Project", key="add_proj_project", placeholder="EACS")
+            add_user = st.text_input("Username (opz.)", key="add_proj_user", placeholder="")
+            add_pat = st.text_input("PAT (opz., salvato nel file)", type="password", key="add_proj_pat", placeholder="lascia vuoto per non salvare")
+            if st.button("Salva progetto"):
+                if add_org and add_proj:
+                    new_id = str(uuid.uuid4())[:8]
+                    projects_list.append({
+                        "id": new_id,
+                        "name": add_name or f"{add_org}/{add_proj}",
+                        "base_url": add_base.strip(),
+                        "organization": add_org.strip(),
+                        "project": add_proj.strip(),
+                        "username": (add_user or "").strip(),
+                        "pat": (add_pat or "").strip(),
+                    })
+                    save_projects(projects_list)
+                    st.success("Progetto aggiunto.")
+                    st.rerun()
+                else:
+                    st.error("Inserisci almeno Organization e Project.")
+
+        if projects_list:
+            st.markdown("---")
+            st.markdown("**Elimina progetto**")
+            del_options = [p.get("id") for p in projects_list]
+            def _del_label(pid):
+                for p in projects_list:
+                    if p.get("id") == pid:
+                        return f"{p.get('name', p.get('project', ''))} ({p.get('organization', '')}/{p.get('project', '')})"
+                return pid
+            to_delete_id = st.selectbox("Scegli da eliminare", options=del_options, format_func=_del_label, key="sidebar_del_sel")
+            if st.button("Elimina", key="sidebar_del_btn") and to_delete_id:
+                projects_list = [p for p in projects_list if p.get("id") != to_delete_id]
+                save_projects(projects_list)
+                if st.session_state.get(SESSION_CURRENT_PROJECT_ID) == to_delete_id:
+                    st.session_state[SESSION_CURRENT_PROJECT_ID] = None
+                st.rerun()
+
+    # ----- Config & connection (compatta) -----
+    # Inizializza campi da config solo se non già in session (evita conflitto con "Carica progetto")
+    for key, config_key in [
+        ("base_url", "base_url"),
+        ("org", "organization"),
+        ("project", "project"),
+        ("username", "username"),
+        ("pat_input", None),
+    ]:
+        if key not in st.session_state:
+            st.session_state[key] = config.get(config_key, "") if config_key else ""
+
     with st.container():
         c1, c2, c3 = st.columns(3)
         with c1:
             base_url = st.text_input(
                 "Base URL (on‑prem, vuoto = cloud)",
-                value=config.get("base_url", ""),
                 key="base_url",
                 placeholder="http://server:8080/tfs",
             )
         with c2:
-            org = st.text_input("Organization", value=config.get("organization", ""), key="org", placeholder="DefaultCollection")
+            org = st.text_input("Organization", key="org", placeholder="DefaultCollection")
         with c3:
-            project = st.text_input("Project", value=config.get("project", ""), key="project", placeholder="EACS")
+            project = st.text_input("Project", key="project", placeholder="EACS")
         r2_1, r2_2, r2_3 = st.columns([2, 1, 1])
         with r2_1:
             pat = st.text_input("PAT", type="password", key="pat_input", placeholder="Personal Access Token")
-            username = st.text_input("Username (opz.)", value=config.get("username", ""), key="username", placeholder="vuoto per solo PAT")
+            username = st.text_input("Username (opz.)", key="username", placeholder="vuoto per solo PAT")
         with r2_2:
             st.write("")  # allineamento
             st.write("")
@@ -148,17 +259,28 @@ def main():
         return
 
     st.subheader("Repository")
-    if SESSION_SELECTED_REPOS not in st.session_state and config.get("selected_repo_ids"):
-        st.session_state[SESSION_SELECTED_REPOS] = set(config["selected_repo_ids"])
-    selected_ids = st.session_state.get(SESSION_SELECTED_REPOS) or set()
-    if isinstance(selected_ids, list):
-        selected_ids = set(selected_ids)
+    # Inizializza selected da config se prima volta; poi la fonte di verità sono i key dei checkbox
+    initial_selected = set(config.get("selected_repo_ids") or [])
+    if SESSION_SELECTED_REPOS not in st.session_state:
+        st.session_state[SESSION_SELECTED_REPOS] = initial_selected.copy()
+    # Costruisci selected_ids dai checkbox in session_state (così "Seleziona tutti" si riflette)
+    def _get_selected_ids():
+        s = set()
+        for r in repos:
+            rid = r.get("id") or r.get("name")
+            default = rid in (st.session_state.get(SESSION_SELECTED_REPOS) or set()) or rid in initial_selected
+            if st.session_state.get(f"repo_{rid}", default):
+                s.add(rid)
+        return s
 
     def toggle_all(on: bool):
-        if on:
-            st.session_state[SESSION_SELECTED_REPOS] = {r.get("id") or r.get("name") for r in repos}
-        else:
-            st.session_state[SESSION_SELECTED_REPOS] = set()
+        for r in repos:
+            rid = r.get("id") or r.get("name")
+            st.session_state[f"repo_{rid}"] = on
+        st.session_state[SESSION_SELECTED_REPOS] = {r.get("id") or r.get("name") for r in repos} if on else set()
+
+    selected_ids = _get_selected_ids()
+    st.session_state[SESSION_SELECTED_REPOS] = selected_ids
 
     # Ordinamento: nome A→Z o Z→A
     sort_order = st.radio("Ordina", options=["Nome (A→Z)", "Nome (Z→A)"], horizontal=True, key="repo_sort")
@@ -176,17 +298,15 @@ def main():
 
     # Lista repo in più colonne (3) per usare lo spazio
     N_COLS = 3
-    chunk = max(1, (len(repos_sorted) + N_COLS - 1) // N_COLS)
     cols = st.columns(N_COLS)
     for i, repo in enumerate(repos_sorted):
         rid = repo.get("id") or repo.get("name")
         name = repo.get("name", rid)
-        checked = rid in selected_ids
+        default_checked = rid in selected_ids
         with cols[i % N_COLS]:
-            if st.checkbox(name, value=checked, key=f"repo_{rid}"):
-                selected_ids.add(rid)
-            else:
-                selected_ids.discard(rid)
+            st.checkbox(name, value=default_checked, key=f"repo_{rid}")
+    # Aggiorna selected dopo il render (stato checkbox può essere cambiato dall'utente)
+    selected_ids = _get_selected_ids()
     st.session_state[SESSION_SELECTED_REPOS] = selected_ids
 
     selected_repos = [r for r in repos if (r.get("id") or r.get("name")) in selected_ids]
