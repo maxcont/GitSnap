@@ -9,3 +9,6 @@ projects.json
 
 output/
 
+
+desktop/gitsnap-desktop/src-tauri/resources/GitSnap/
+
