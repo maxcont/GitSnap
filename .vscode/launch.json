@@ -8,7 +8,7 @@
       "module": "streamlit",
       "args": [
         "run",
-        "app.py",
+        "src/app.py",
         "--server.headless=true"
       ],
       "cwd": "${workspaceFolder}",
@@ -19,7 +19,7 @@
       "type": "debugpy",
       "request": "launch",
       "module": "streamlit",
-      "args": ["run", "app.py"],
+      "args": ["run", "src/app.py"],
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal"
     }

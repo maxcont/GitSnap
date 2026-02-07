@@ -31,8 +31,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-CONFIG_FILE = Path(__file__).resolve().parent / "config.json"
-PROJECTS_FILE = Path(__file__).resolve().parent / "projects.json"
+_BASE_DIR = Path(__file__).resolve().parent.parent
+CONFIG_FILE = _BASE_DIR / "data" / "config.json"
+PROJECTS_FILE = _BASE_DIR / "data" / "projects.json"
 CREDITS_AUTHOR = "Massimo Contursi"
 SESSION_PAT = "pat"
 SESSION_CLIENT = "client"
@@ -65,6 +66,7 @@ def save_config(config: dict) -> None:
     # Never persist PAT
     out = {k: v for k, v in config.items() if k not in ("pat", "PAT")}
     try:
+        CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
         with open(CONFIG_FILE, "w", encoding="utf-8") as f:
             json.dump(out, f, indent=2, ensure_ascii=False)
     except Exception as e:
@@ -85,6 +87,7 @@ def load_projects() -> list[dict]:
 
 def save_projects(projects: list[dict]) -> None:
     try:
+        PROJECTS_FILE.parent.mkdir(parents=True, exist_ok=True)
         with open(PROJECTS_FILE, "w", encoding="utf-8") as f:
             json.dump({"projects": projects}, f, indent=2, ensure_ascii=False)
     except Exception as e:

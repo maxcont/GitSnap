@@ -11,12 +11,8 @@ OUTPUT_ROOT = ROOT / "output"
 OUTPUT_APP = OUTPUT_ROOT / APP_NAME
 
 INCLUDE = [
-    "app.py",
-    "azure_devops_client.py",
-    "diff_service.py",
-    "ref_resolver.py",
-    "config.json",
-    "projects.json",
+    "src",
+    "data",
     "requirements.txt",
     "README.md",
     ".streamlit",

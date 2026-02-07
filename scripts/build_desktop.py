@@ -12,7 +12,7 @@ STREAMLIT_WAIT_TIMEOUT = 60
 
 ROOT = Path(__file__).parent.parent.resolve()
 SCRIPTS = ROOT / "scripts"
-APP_PY = ROOT / "app.py"
+APP_PY = ROOT / "src" / "app.py"
 
 OUTPUT_APP = ROOT / "output" / APP_NAME
 

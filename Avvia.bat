@@ -26,7 +26,7 @@ REM Apri il browser
 start "" http://localhost:%STREAMLIT_PORT%
 
 REM Avvia Streamlit
-streamlit run app.py ^
+streamlit run src/app.py ^
     --server.headless true ^
     --server.port %STREAMLIT_PORT%
 

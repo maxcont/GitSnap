@@ -11,7 +11,7 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent.resolve()
-APP_PY = ROOT / "app.py"
+APP_PY = ROOT / "src" / "app.py"
 PORT = 8501
 WAIT_TIMEOUT = 60
 POLL_INTERVAL = 0.5

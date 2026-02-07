@@ -6,7 +6,7 @@ Usa queste richieste in **Postman** (o simile) per verificare connessione, **sco
 
 ## Import collection (opzionale)
 
-- In Postman: **Import** → scegli il file **`GitCheck_Postman_Collection.json`** nella cartella del progetto.
+- In Postman: **Import** → scegli il file **`GitCheck_Postman_Collection.json`** nella cartella **docs/** del progetto.
 - Nella collection importata, apri **Variables** e imposta **PAT** con il tuo token (Current Value).
 - Le richieste 1–6 sono pronte; puoi cambiare **BASE_URL**, **ORG**, **PROJECT**, **REPO_ID** dalle variabili.
 

@@ -2,9 +2,8 @@ __pycache__/
 *.pyc
 .venv/
 .env
-output\
-
-projects.json
+output/
+data/projects.json
 
 
 output/
