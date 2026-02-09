@@ -5,6 +5,7 @@ confronto differenze e dashboard risultati. Nessun clone, solo REST API.
 
 import json
 import logging
+import sys
 import time
 import uuid
 from pathlib import Path
@@ -31,9 +32,22 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+def _data_base_dir() -> Path:
+    """Cartella base per dati: scrivibile (AppData/GitSnap) quando frozen, altrimenti repo/data."""
+    if getattr(sys, "frozen", False):
+        import os
+        if sys.platform == "win32":
+            appdata = os.environ.get("APPDATA") or str(Path(sys.executable).resolve().parent)
+            base = Path(appdata) / "GitSnap"
+        else:
+            base = Path.home() / ".config" / "GitSnap"
+        return base
+    return Path(__file__).resolve().parent.parent
+
 _BASE_DIR = Path(__file__).resolve().parent.parent
-CONFIG_FILE = _BASE_DIR / "data" / "config.json"
-PROJECTS_FILE = _BASE_DIR / "data" / "projects.json"
+_DATA_DIR = _data_base_dir() / "data"
+CONFIG_FILE = _DATA_DIR / "config.json"
+PROJECTS_FILE = _DATA_DIR / "projects.json"
 CREDITS_AUTHOR = "Massimo Contursi"
 SESSION_PAT = "pat"
 SESSION_CLIENT = "client"

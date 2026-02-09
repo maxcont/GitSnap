@@ -7,6 +7,8 @@ data/projects.json
 
 
 output/
+dist/
+build/
 
 
 desktop/gitsnap-desktop/src-tauri/resources/GitSnap/

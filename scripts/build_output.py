@@ -15,6 +15,7 @@ INCLUDE = [
     "data",
     "requirements.txt",
     "README.md",
+    "README_UTENTE.md",
     ".streamlit",
     ".venv",
     "Avvia.bat",
